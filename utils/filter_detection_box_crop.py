@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import cv2
 import os
 import collections
@@ -78,7 +79,7 @@ def crop_boxes_from_image(bname,
                               keypoints=None,
                               use_normalized_coordinates=False,
                               max_boxes_to_draw=20,
-                              min_score_thresh=.2,
+                              min_score_thresh=.4,
                               agnostic_mode=False,
                               line_thickness=4):
     """Overlay labeled boxes on an image with formatted scores and label names.
@@ -115,62 +116,60 @@ def crop_boxes_from_image(bname,
     Returns:
       uint8 numpy array with shape (img_height, img_width, 3) with overlaid boxes.
     """
-    # Create a display string (and color) for every box location, group any boxes
-    # that correspond to the same location.
-    csv_line_util = "not_available"
-    counter = 0
-    is_vehicle_detected = []
+
     box_to_display_str_map = collections.defaultdict(list)
     box_to_score = collections.defaultdict(float)
     box_to_instance_masks_map = {}
     box_to_keypoints_map = collections.defaultdict(list)
-    if not max_boxes_to_draw:
-        max_boxes_to_draw = boxes.shape[0]
-    for i in range(min(max_boxes_to_draw, boxes.shape[0])):
-        if scores is None or scores[i] > min_score_thresh:
-            box = tuple(boxes[i].tolist())
-            if instance_masks is not None:
-                box_to_instance_masks_map[box] = instance_masks[i]
-            if keypoints is not None:
-                box_to_keypoints_map[box].extend(keypoints[i])
-            if scores is None:
-                box_to_color_map[box] = 'black'
-            else:
-                if not agnostic_mode:
-                    if classes[i] in category_index.keys():
-                        class_name = category_index[classes[i]]['name']
-                    else:
-                        class_name = 'N/A'
-                    display_str = '{}: {}%'.format(class_name, int(100 * scores[i]))
-                else:
-                    display_str = 'score: {}%'.format(int(100 * scores[i]))
 
-                box_to_display_str_map[box].append(display_str)
-                if agnostic_mode:
-                    box_to_color_map[box] = scores[i]
-                else:
-                    box_to_color_map[box] = STANDARD_COLORS[
-                        classes[i] % len(STANDARD_COLORS)]
+    im_height, im_width, channel = image.shape
+    display_str=''
+    boxes_filtered = []
+    dets = []
+    for i in range(min(max_boxes_to_draw, boxes.shape[0])):
+        box = tuple(boxes[i].tolist())
+        if instance_masks is not None:
+            box_to_instance_masks_map[box] = instance_masks[i]
+        if keypoints is not None:
+            box_to_keypoints_map[box].extend(keypoints[i])
+
+        if not agnostic_mode:
+            if classes[i] in category_index.keys():
+                class_name = category_index[classes[i]]['name']
+            else:
+                class_name = 'N/A'
+            display_str = '{}: {}%'.format(class_name, int(100 * scores[i]))
+        else:
+            display_str = 'score: {}%'.format(int(100 * scores[i]))
+
+        if scores[i] >min_score_thresh:
+            if ("car" in display_str) or ("truck" in display_str) or ("bus" in display_str):
+                ymin, xmin, ymax, xmax = box
+                (left, right, top, bottom) = (int(xmin * im_width), int(xmax * im_width),
+                                              int(ymin * im_height), int(ymax * im_height))
+
+                dets.append([left, top, right, bottom, scores[i]])
+
+
+    print("Number of boxes = {}".format(len(boxes)))
+
+    if len(dets) == 0:
+        return None
+
+    if len(boxes)>1:
+        keep = py_cpu_nms(np.array(dets), 0.6)
+        print keep
+        boxes_filtered = [dets[i] for i in keep]
+    else:
+        boxes_filtered = dets
 
     # Write out all boxes into image.
-    icount = 0
-    boxes_filtered =[]
-    for box, color in box_to_color_map.items():
-        ymin, xmin, ymax, xmax = box
-        im_height, im_width, channel = image.shape
-        if use_normalized_coordinates:
-            (left, right, top, bottom) = (int(xmin * im_width), int(xmax * im_width),
-                                          int(ymin * im_height), int(ymax * im_height))
+    for icount, box in enumerate(boxes_filtered):
+        print box
+        left, top, right, bottom, score = box
 
-        display_str_list = box_to_display_str_map[box]
-        print display_str_list
-        # we are interested just vehicles (i.e. cars and trucks)
-        if (("car" in display_str_list[0]) or ("truck" in display_str_list[0]) or ("bus" in display_str_list[0])):
-            print(xmin, ymin, xmax, ymax)
-            crop_path = '%s/%s_%02d.jpg'%(crop_folder, bname, icount)
-            cv2.imwrite(crop_path, image[top:bottom, left:right])
-            boxes_filtered.append([])
-            icount += 1
+        crop_path = '%s/%s_%02d.jpg'%(crop_folder, bname, icount)
+        cv2.imwrite(crop_path, image[top:bottom, left:right])
 
     return boxes_filtered
 

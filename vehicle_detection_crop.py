@@ -101,7 +101,7 @@ def object_detection_function(frame, img_basename, crop_folder):
                          detection_classes, num_detections],
                          feed_dict={image_tensor: image_np_expanded})
 
-            print("Number of boxes = {}".format(len(boxes)))
+
             # Visualization of the results of a detection.
 
             boxes_filtered=filter_detection_box_crop.crop_boxes_from_image(
@@ -130,11 +130,9 @@ if __name__ == '__main__':
     img_all.sort()
 
     for idx, fname in enumerate(img_all):
-        print fname
-        if idx > 5:
-            break
+        print idx, fname
+        #if idx < 240:
+        #    continue
         bname = os.path.splitext(os.path.basename(fname))[0]
-        #fname ='/Users/fei/data/parking/香港车牌/IMG_1536.JPG'
         frame = cv2.imread(fname)
-        print frame.shape
         object_detection_function(frame, bname, args.crop_folder)
