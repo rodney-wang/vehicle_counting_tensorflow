@@ -20,7 +20,7 @@ import glob
 # Object detection imports
 from utils import label_map_util
 from utils import filter_detection_box_crop
-
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 if tf.__version__ < '1.4.0':
     raise ImportError('Please upgrade your tensorflow installation to v1.4.* or later!'
@@ -120,13 +120,13 @@ def object_detection_function(frame, img_basename, crop_folder):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-l', '--data_folder', default='/Users/fei/data/parking/香港车牌')
-    parser.add_argument('-c', '--crop_folder', default='/Users/fei/data/parking/hk_cropped_20190509', help='cropped car image folder')
+    parser.add_argument('-l', '--data_folder', default='/ssd/wfei/data/hongkong_raw/batch3')
+    parser.add_argument('-c', '--crop_folder', default='/ssd/wfei/data/plate_for_label/hk_double/car_crop_20190517', help='cropped car image folder')
     args = parser.parse_args()
 
     if not os.path.exists(args.crop_folder):
           os.makedirs(args.crop_folder)
-    img_all = glob.glob(os.path.join(args.data_folder, "*.JPG"))
+    img_all = glob.glob(os.path.join(args.data_folder, "*.jpg"))
     img_all.sort()
 
     for idx, fname in enumerate(img_all):
